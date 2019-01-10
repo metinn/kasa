@@ -177,7 +177,7 @@ extension Kasa {
     }
 
     fileprivate func getMany(_ startKey: String, toKey: String, limit: Int32) throws -> [Data] {
-        let sql = "Select value From KV Where kkey between ? and ? limit ?;"
+        let sql = "Select value From KV Where kkey between ? and ? order by kkey limit ?;"
         let statement = try prepareStatement(sql: sql, startKey, toKey, limit)
         let dataArray = try query(statement: statement)
         return dataArray
