@@ -47,7 +47,7 @@ kasa.view { tran in
 For saving data Synchronously use `updateSync` blocks
 
 ```swift
-let person = Person(name: "SomPerson", age: 28, height: 172.3)
+let person = Person(name: "SomePerson", age: 28, height: 172.3)
 let err = kasa.updateSync { tran in
     try tran.save(person, withKey: "key")
 }
