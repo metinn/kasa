@@ -322,3 +322,23 @@ extension KasaError: LocalizedError {
         }
     }
 }
+
+// MARK: - Result
+enum Result<T> {
+    case value(T)
+    case error(Error)
+}
+
+extension Kasa {
+    func value(forKey key: String, ofType type: T.Type) -> Result<T> {
+        var r: T?
+        var e: Error?
+        self.view { trans in
+            r = try trans.fetch(type, withKey: key)
+        }.onError { err in
+            e = err
+        }
+        if let result = r { return .value(result) }
+        return .error(e ?? KasaError.general(message: "This operation couldn't be completed"))
+    }
+]
