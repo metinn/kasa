@@ -330,7 +330,7 @@ enum Result<T> {
 }
 
 extension Kasa {
-    func value(forKey key: String, ofType type: T.Type) -> Result<T> {
+    func value<T: Codable>(forKey key: String, ofType type: T.Type) -> Result<T> {
         var r: T?
         var e: Error?
         self.view { trans in
@@ -341,4 +341,4 @@ extension Kasa {
         if let result = r { return .value(result) }
         return .error(e ?? KasaError.general(message: "This operation couldn't be completed"))
     }
-]
+}

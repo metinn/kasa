@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import Kasa
+@testable import kasa
 
 class KasaTests: XCTestCase {
     var kasa: Kasa?

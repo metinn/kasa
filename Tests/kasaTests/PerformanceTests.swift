@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import Kasa
+@testable import kasa
 
 class PerformanceTests: XCTestCase {
 //    let transactionCount = 1000

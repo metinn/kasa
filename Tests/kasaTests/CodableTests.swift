@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import Kasa
+@testable import kasa
 
 struct Car: Codable {
     var brand: String
