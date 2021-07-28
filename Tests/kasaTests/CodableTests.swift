@@ -9,40 +9,20 @@
 import XCTest
 @testable import kasa
 
-struct Car: Codable {
-    var brand: String
-    var kmt: Double
-}
-
 class CodableTests: XCTestCase {
-    var kasa: Kasa?
-
-    override func setUp() {
-        do {
-            self.kasa = try Kasa(name: "testdb")
-        } catch let err {
-            print(err.localizedDescription)
-            XCTAssert(false)
-        }
-    }
-
-    override func tearDown() {
-        self.kasa = nil
-    }
-
+    
     func testCodableInsertSync() {
         let key = "testCodableInsertSync"
         let value = "codableValue"
 
-        let err = kasa?.updateSync { tran in
-            try tran.save(Car(brand: value, kmt: 5432.0), withKey: key)
-            let fetchedCar = try tran.fetch(Car.self, withKey: key)
+        do {
+            let kasa = try Kasa(name: "testdb")
+            try kasa.set(Car(brand: value, kmt: 5432.0), forKey: key)
+            let fetchedCar = try kasa.get(Car.self, forKey: key)
 
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value)
-        }
-
-        if let err = err {
+        } catch let err {
             XCTAssert(false)
             print(err.localizedDescription)
         }
@@ -53,16 +33,15 @@ class CodableTests: XCTestCase {
         let value1 = "codableValue1"
         let value2 = "codableValue2"
 
-        let err = kasa!.updateSync { tran in
-            try tran.save(Car(brand: value1, kmt: 5432.0), withKey: key)
-            try tran.save(Car(brand: value2, kmt: 121.0), withKey: key)
-            let fetchedCar = try tran.fetch(Car.self, withKey: key)
+        do {
+            let kasa = try Kasa(name: "testdb")
+            try kasa.set(Car(brand: value1, kmt: 5432.0), forKey: key)
+            try kasa.set(Car(brand: value2, kmt: 121.0), forKey: key)
+            let fetchedCar = try kasa.get(Car.self, forKey: key)
 
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value2)
-        }
-
-        if let err = err {
+        } catch let err {
             XCTAssert(false)
             print(err.localizedDescription)
         }
@@ -72,18 +51,17 @@ class CodableTests: XCTestCase {
         let key = "testCodableDeleteSync"
         let value = "codableValue"
 
-        let err = kasa!.updateSync { tran in
-            try tran.save(Car(brand: value, kmt: 5432.0), withKey: key)
+        do {
+            let kasa = try Kasa(name: "testdb")
+            try kasa.set(Car(brand: value, kmt: 5432.0), forKey: key)
 
-            let fetchedCar = try tran.fetch(Car.self, withKey: key)
+            let fetchedCar = try kasa.get(Car.self, forKey: key)
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value)
 
-            try tran.remove(key)
-            XCTAssert(try tran.fetch(Car.self, withKey: key) == nil)
-        }
-
-        if let err = err {
+            try kasa.remove(Car.self, forKey: key)
+            XCTAssert(try kasa.get(Car.self, forKey: key) == nil)
+        } catch let err {
             XCTAssert(false)
             print(err.localizedDescription)
         }

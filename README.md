@@ -1,5 +1,7 @@
 # Kasa
 
+> ⚠ Experimental, expect bugs and breaking changes
+
 Tiny Key-***Codable*** Store based on SQLITE with no external dependencies.
 
 ## Usage
