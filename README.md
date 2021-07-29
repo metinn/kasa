@@ -19,17 +19,25 @@ struct Person: Codable {
 Create store:
 
 ```swift
-let kasa = try? Kasa(name: "test")
+do {
+    let kasa = try Kasa(name: "test")
+    
+    ...
+} catch let err {
+    print("Kasa:", "Some error occured:", err.localizedDescription)
+}
 ```
 
 Save some person information:
 
 ```swift
-let person = Person(name: "SomePerson", age: 28, height: 172.3)
-kasa.update { tran in
-    try tran.save(person, withKey: "key")
-}.onError { err in
-    print("Kasa:", "Some error occured:", err.localizedDescription)
+do {
+    ...
+    
+    let person = Person(name: "SomePerson", age: 28, height: 172.3)
+    try kasa.set(person, forKey: "key1")
+} catch let err {
+    ...
 }
 ```
 
@@ -38,45 +46,25 @@ kasa.update { tran in
 Read person data:
 
 ```swift
-kasa.view { tran in
-    let person = try tran.fetch(Person.self, withKey: "key")
+do {
+    ...
+    
+    let person = try kasa.get(Person.self, forKey: "key1")
     print("Kasa:", person ?? "nil")
-}.onError { err in
-    print("Kasa:", "Some error occured:", err.localizedDescription)
-}
-```
-
-For saving data Synchronously use `updateSync` blocks
-
-```swift
-let person = Person(name: "SomePerson", age: 28, height: 172.3)
-let err = kasa.updateSync { tran in
-    try tran.save(person, withKey: "key")
-}
-if let err = err {
-    print("Kasa:", "Some error occured:", err.localizedDescription)
-}
-```
-
-For reading data Synchronously use `viewSync` block
-
-```swift
-let err = kasa.viewSync { tran in
-    let person = try tran.fetch(Person.self, withKey: "key")
-    print("Kasa:", person ?? "nil")
-}
-if let err = err {
-    print("Kasa:", "Some error occured:", err.localizedDescription)
+} catch let err {
+    ...
 }
 ```
 
 If you have ***Sortable Key*** you can get many objects
 
 ```swift
-kasa.view { tran in
-    let persons = try tran.fetchMany(Person.self, startKey: "Person-00010", toKey: "Person-00030", limit: 20)
+do {
+    ...
+    
+    let persons = try kasa.getMany(Person.self, startKey: "Person-00010", endKey: "Person-00030", limit: 20)
     print("Kasa:", persons.first?.name ?? "nil")
-}.onError { err in
-    print("Kasa:", "Some error occured:", err.localizedDescription)
+} catch let err {
+    ...
 }
 ```
