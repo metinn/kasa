@@ -46,7 +46,7 @@ class Kasa {
             err = Kasa.errorMessage(dbp: dbp)
             sqlite3_close(dbp)
         }
-        throw KasaError.general(message: err ?? "")
+        throw NSError(domain: err ?? "", code: -1, userInfo: nil)
     }
 
     deinit {
@@ -164,27 +164,27 @@ extension Kasa {
     private func prepareStatement(sql: String, params: [Any]) throws -> OpaquePointer? {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(dbPointer, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw KasaError.general(message: errorMessage)
+            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
         }
 
         var index: Int32 = 1
         for param in params {
             if let stringParam = param as? String {
                 if sqlite3_bind_text(statement, index, stringParam, -1, sqliteTransient) != SQLITE_OK {
-                    throw KasaError.general(message: errorMessage)
+                    throw NSError(domain: errorMessage, code: -1, userInfo: nil)
                 }
             } else if let intParam = param as? Int32 {
                 if sqlite3_bind_int(statement, index, intParam) != SQLITE_OK {
-                    throw KasaError.general(message: errorMessage)
+                    throw NSError(domain: errorMessage, code: -1, userInfo: nil)
                 }
             } else if let dataParam = param as? Data {
                 try dataParam.withUnsafeBytes { p in
                     if sqlite3_bind_blob(statement, index, p.baseAddress, Int32(p.count), sqliteTransient) != SQLITE_OK {
-                        throw KasaError.general(message: errorMessage)
+                        throw NSError(domain: errorMessage, code: -1, userInfo: nil)
                     }
                 }
             } else {
-                throw KasaError.general(message: "Unsupported parameter type: Support more type if prepareStatement func become public")
+                throw NSError(domain: "Unsupported parameter type: Support more type if prepareStatement func become public", code: -1, userInfo: nil)
             }
             
             index += 1
@@ -195,7 +195,7 @@ extension Kasa {
 
     private func execute(sql: String) throws {
         guard sqlite3_exec(dbPointer, sql.cString(using: .utf8), nil, nil, nil) == SQLITE_OK else {
-            throw KasaError.general(message: errorMessage)
+            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
         }
     }
 
@@ -203,7 +203,7 @@ extension Kasa {
         defer { sqlite3_finalize(statement) }
 
         guard sqlite3_step(statement) == SQLITE_DONE else {
-            throw KasaError.general(message: errorMessage)
+            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
         }
     }
 
@@ -213,7 +213,7 @@ extension Kasa {
         var dataArray = [Data]()
         while sqlite3_step(statement) == SQLITE_ROW {
             guard let blob = sqlite3_column_blob(statement, 0) else {
-                throw KasaError.general(message: errorMessage)
+                throw NSError(domain: errorMessage, code: -1, userInfo: nil)
             }
             let bytes = sqlite3_column_bytes(statement, 0)
             dataArray.append(Data(bytes: blob, count: Int(bytes)))
@@ -236,19 +236,5 @@ extension Kasa {
     static private func dbPath(name: String) -> String {
         let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         return "\(path)/\(name).sqlite"
-    }
-}
-
-// MARK: - Kasa Error
-enum KasaError: Error {
-    case general(message: String)
-}
-
-extension KasaError: LocalizedError {
-    var errorDescription: String? {
-        switch self {
-        case .general(let message):
-            return message
-        }
     }
 }
