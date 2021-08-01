@@ -62,7 +62,7 @@ extension Kasa {
                 CREATE TABLE KV(
                   kkey TEXT PRIMARY KEY NOT NULL,
                   valueType TEXT,
-                  value TEXT
+                  value BLOB
                 );
             """
             try self.execute(sql: sql)
@@ -84,7 +84,7 @@ extension Kasa {
         let typeName = "\(T.self)"
         let value = try JSONEncoder().encode(object)
         let sql = "INSERT or REPLACE INTO KV (kkey, valueType, value) VALUES (?, ?, ?);"
-        let statement = try prepareStatement(sql: sql, params: [key, typeName, value.base64EncodedString()])
+        let statement = try prepareStatement(sql: sql, params: [key, typeName, value])
         try execute(statement: statement)
     }
 
@@ -177,6 +177,12 @@ extension Kasa {
                 if sqlite3_bind_int(statement, index, intParam) != SQLITE_OK {
                     throw KasaError.general(message: errorMessage)
                 }
+            } else if let dataParam = param as? Data {
+                try dataParam.withUnsafeBytes { p in
+                    if sqlite3_bind_blob(statement, index, p.baseAddress, Int32(p.count), sqliteTransient) != SQLITE_OK {
+                        throw KasaError.general(message: errorMessage)
+                    }
+                }
             } else {
                 throw KasaError.general(message: "Unsupported parameter type: Support more type if prepareStatement func become public")
             }
@@ -206,13 +212,11 @@ extension Kasa {
 
         var dataArray = [Data]()
         while sqlite3_step(statement) == SQLITE_ROW {
-            guard let cStr = sqlite3_column_text(statement, 0) else {
+            guard let blob = sqlite3_column_blob(statement, 0) else {
                 throw KasaError.general(message: errorMessage)
             }
-            guard let data = Data.init(base64Encoded: String(cString: cStr)) else {
-                throw KasaError.general(message: errorMessage)
-            }
-            dataArray.append(data)
+            let bytes = sqlite3_column_bytes(statement, 0)
+            dataArray.append(Data(bytes: blob, count: Int(bytes)))
         }
 
         return dataArray
