@@ -10,10 +10,10 @@ import Foundation
 import SQLite3
 
 class Kasa {
-    fileprivate var dbPointer: OpaquePointer
+    var db: OpaquePointer
 
     fileprivate var errorMessage: String {
-        return Kasa.errorMessage(dbp: dbPointer)
+        return Kasa.errorMessage(dbp: db)
     }
 
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
@@ -27,10 +27,10 @@ class Kasa {
         var dbp: OpaquePointer?
         let firstInit = !FileManager.default.fileExists(atPath: dbPath)
         if sqlite3_open_v2(dbPath, &dbp, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK || dbp != nil {
-            dbPointer = dbp!
+            db = dbp!
             
             // wait until previous work finished. Otherwise it will return 'database is locked' error
-            sqlite3_busy_timeout(dbPointer, 1000)
+            sqlite3_busy_timeout(db, 1000)
             
             if firstInit {
                 // enable wal mode
@@ -50,7 +50,7 @@ class Kasa {
     }
 
     deinit {
-        sqlite3_close(dbPointer)
+        sqlite3_close(db)
     }
 }
 
@@ -163,7 +163,7 @@ extension Kasa {
 extension Kasa {
     private func prepareStatement(sql: String, params: [Any]) throws -> OpaquePointer? {
         var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(dbPointer, sql, -1, &statement, nil) == SQLITE_OK else {
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             throw NSError(domain: errorMessage, code: -1, userInfo: nil)
         }
 
@@ -194,7 +194,7 @@ extension Kasa {
     }
 
     private func execute(sql: String) throws {
-        guard sqlite3_exec(dbPointer, sql.cString(using: .utf8), nil, nil, nil) == SQLITE_OK else {
+        guard sqlite3_exec(db, sql.cString(using: .utf8), nil, nil, nil) == SQLITE_OK else {
             throw NSError(domain: errorMessage, code: -1, userInfo: nil)
         }
     }
@@ -212,14 +212,26 @@ extension Kasa {
 
         var dataArray = [Data]()
         while sqlite3_step(statement) == SQLITE_ROW {
-            guard let blob = sqlite3_column_blob(statement, 0) else {
-                throw NSError(domain: errorMessage, code: -1, userInfo: nil)
-            }
-            let bytes = sqlite3_column_bytes(statement, 0)
-            dataArray.append(Data(bytes: blob, count: Int(bytes)))
+            let data = try getData(statement: statement, index: 0)
+            dataArray.append(data)
         }
 
         return dataArray
+    }
+    
+    func getString(statement: OpaquePointer?, index: Int32) throws -> String {
+        guard let cStr = sqlite3_column_text(statement, index) else {
+            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+        }
+        return String(cString: cStr)
+    }
+    
+    func getData(statement: OpaquePointer?, index: Int32) throws -> Data {
+        guard let blob = sqlite3_column_blob(statement, index) else {
+            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+        }
+        let bytes = sqlite3_column_bytes(statement, index)
+        return Data(bytes: blob, count: Int(bytes))
     }
 }
 
@@ -236,5 +248,34 @@ extension Kasa {
     static private func dbPath(name: String) -> String {
         let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         return "\(path)/\(name).sqlite"
+    }
+}
+
+// Migration
+extension Kasa {
+    func runMigration<T>(_ type: T.Type, migration: ([String: Any]) -> [String: Any]) throws where T: Codable {
+        let sql = "Select kkey, value From KV Where valueType = ?"
+        let typeName = "\(type)"
+        
+        let statement = try prepareStatement(sql: sql, params: [typeName])
+        defer { sqlite3_finalize(statement) }
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            // get the object
+            let kkey = try getString(statement: statement, index: 0)
+            let data = try getData(statement: statement, index: 1)
+            // make it json
+            let jsonObject = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as! [String : Any]
+            
+            // run migration
+            let newJsonObject = migration(jsonObject)
+            
+            // serialize new object
+            let newData = try JSONSerialization.data(withJSONObject: newJsonObject, options: .fragmentsAllowed)
+            // update the data on sqlite
+            let sql = "Update KV Set value = ? Where kkey = ?;"
+            let updateStatement = try prepareStatement(sql: sql, params: [newData, kkey])
+            try execute(statement: updateStatement)
+        }
     }
 }
