@@ -11,11 +11,6 @@ import SQLite3
 
 class Kasa {
     var db: OpaquePointer
-
-    fileprivate var errorMessage: String {
-        return Kasa.errorMessage(dbp: db)
-    }
-
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
 
     // MARK: - Init
@@ -26,7 +21,8 @@ class Kasa {
     init(dbPath: String) throws {
         var dbp: OpaquePointer?
         let firstInit = !FileManager.default.fileExists(atPath: dbPath)
-        if sqlite3_open_v2(dbPath, &dbp, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK || dbp != nil {
+        let openResult = sqlite3_open_v2(dbPath, &dbp, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil)
+        if openResult == SQLITE_OK || dbp != nil {
             db = dbp!
             
             // wait until previous work finished. Otherwise it will return 'database is locked' error
@@ -38,15 +34,9 @@ class Kasa {
                 
                 try? self.createKVTable()
             }
-            return
+        } else {
+            throw NSError(domain: "sqlite3_open_v2 failed with code: \(openResult)", code: -1, userInfo: nil)
         }
-
-        var err: String?
-        if let dbp = dbp {
-            err = Kasa.errorMessage(dbp: dbp)
-            sqlite3_close(dbp)
-        }
-        throw NSError(domain: err ?? "", code: -1, userInfo: nil)
     }
 
     deinit {
@@ -164,23 +154,23 @@ extension Kasa {
     private func prepareStatement(sql: String, params: [Any]) throws -> OpaquePointer? {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+            throw getLastError()
         }
 
         var index: Int32 = 1
         for param in params {
             if let stringParam = param as? String {
                 if sqlite3_bind_text(statement, index, stringParam, -1, sqliteTransient) != SQLITE_OK {
-                    throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+                    throw getLastError()
                 }
             } else if let intParam = param as? Int32 {
                 if sqlite3_bind_int(statement, index, intParam) != SQLITE_OK {
-                    throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+                    throw getLastError()
                 }
             } else if let dataParam = param as? Data {
                 try dataParam.withUnsafeBytes { p in
                     if sqlite3_bind_blob(statement, index, p.baseAddress, Int32(p.count), sqliteTransient) != SQLITE_OK {
-                        throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+                        throw getLastError()
                     }
                 }
             } else {
@@ -195,7 +185,7 @@ extension Kasa {
 
     private func execute(sql: String) throws {
         guard sqlite3_exec(db, sql.cString(using: .utf8), nil, nil, nil) == SQLITE_OK else {
-            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+            throw getLastError()
         }
     }
 
@@ -203,7 +193,7 @@ extension Kasa {
         defer { sqlite3_finalize(statement) }
 
         guard sqlite3_step(statement) == SQLITE_DONE else {
-            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+            throw getLastError()
         }
     }
 
@@ -221,14 +211,14 @@ extension Kasa {
     
     func getString(statement: OpaquePointer?, index: Int32) throws -> String {
         guard let cStr = sqlite3_column_text(statement, index) else {
-            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+            throw getLastError()
         }
         return String(cString: cStr)
     }
     
     func getData(statement: OpaquePointer?, index: Int32) throws -> Data {
         guard let blob = sqlite3_column_blob(statement, index) else {
-            throw NSError(domain: errorMessage, code: -1, userInfo: nil)
+            throw getLastError()
         }
         let bytes = sqlite3_column_bytes(statement, index)
         return Data(bytes: blob, count: Int(bytes))
@@ -236,18 +226,17 @@ extension Kasa {
 }
 
 extension Kasa {
-    static func errorMessage(dbp: OpaquePointer) -> String {
-        if let errorPointer = sqlite3_errmsg(dbp) {
-            let errorMessage = String(cString: errorPointer)
-            return errorMessage
-        } else {
-            return "No error message provided from sqlite."
-        }
-    }
-
     static private func dbPath(name: String) -> String {
         let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         return "\(path)/\(name).sqlite"
+    }
+
+    func getLastError() -> NSError {
+        if let errorPointer = sqlite3_errmsg(db) {
+            return NSError(domain: String(cString: errorPointer), code: -1, userInfo: nil)
+        } else {
+            return NSError(domain: "No error message provided from sqlite.", code: -1, userInfo: nil)
+        }
     }
 }
 
