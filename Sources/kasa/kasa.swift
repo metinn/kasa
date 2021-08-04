@@ -12,6 +12,7 @@ import SQLite3
 class Kasa {
     var db: OpaquePointer
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
+    var tablesNames = [String]()
 
     // MARK: - Init
     convenience init(name: String, queue: DispatchQueue? = nil) throws {
@@ -28,11 +29,10 @@ class Kasa {
             // wait until previous work finished. Otherwise it will return 'database is locked' error
             sqlite3_busy_timeout(db, 1000)
             
+            self.tablesNames = try getTables()
             if firstInit {
                 // enable wal mode
                 try? self.execute(sql: "PRAGMA journal_mode = WAL")
-                
-                try? self.createKVTable()
             }
         } else {
             throw NSError(domain: "sqlite3_open_v2 failed with code: \(openResult)", code: -1, userInfo: nil)
@@ -46,25 +46,47 @@ class Kasa {
 
 // MARK: - SQL Init
 extension Kasa {
-    private func createKVTable() throws {
+    private func getTables() throws -> [String] {
         do {
             let sql = """
-                CREATE TABLE KV(
+                SELECT name FROM sqlite_master
+                WHERE type ='table' AND name NOT LIKE 'sqlite_%';
+                """
+            
+            let statement = try prepareStatement(sql: sql, params: [])
+            defer { sqlite3_finalize(statement) }
+
+            var tables = [String]()
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let data = try getString(statement: statement, index: 0)
+                tables.append(data)
+            }
+            return tables
+        } catch let err {
+            throw err
+        }
+    }
+    
+    private func createTableIfNeeded(name: String) throws {
+        guard !self.tablesNames.contains(name) else { return }
+        
+        do {
+            let sql = """
+                CREATE TABLE \(name)(
                   kkey TEXT PRIMARY KEY NOT NULL,
-                  valueType TEXT,
                   value BLOB
                 );
             """
             try self.execute(sql: sql)
-
-            try self.createIndex()
+            try self.createPrimaryIndex(name: name)
+            self.tablesNames.append(name)
         } catch let err {
             throw err
         }
     }
 
-    private func createIndex() throws {
-        try execute(sql: "CREATE UNIQUE INDEX kkeyIndex ON KV(kkey, valueType);")
+    private func createPrimaryIndex(name: String) throws {
+        try execute(sql: "CREATE UNIQUE INDEX kkeyIndex ON \(name)(kkey);")
     }
 }
 
@@ -72,16 +94,18 @@ extension Kasa {
 extension Kasa {
     func set<T>(_ object: T, forKey key: String) throws where T: Codable {
         let typeName = "\(T.self)"
+        try createTableIfNeeded(name: typeName)
         let value = try JSONEncoder().encode(object)
-        let sql = "INSERT or REPLACE INTO KV (kkey, valueType, value) VALUES (?, ?, ?);"
-        let statement = try prepareStatement(sql: sql, params: [key, typeName, value])
+        let sql = "INSERT or REPLACE INTO \(typeName) (kkey, value) VALUES (?, ?);"
+        let statement = try prepareStatement(sql: sql, params: [key, value])
         try execute(statement: statement)
     }
 
     func get<T>(_ type: T.Type, forKey key: String) throws -> T? where T: Codable {
         let typeName = "\(type)"
-        let sql = "Select value From KV Where valueType = ? and kkey = ?;"
-        let statement = try prepareStatement(sql: sql, params: [typeName, key])
+        try createTableIfNeeded(name: typeName)
+        let sql = "Select value From \(typeName) Where kkey = ?;"
+        let statement = try prepareStatement(sql: sql, params: [key])
         let dataArray = try query(statement: statement)
         
         guard let data = dataArray.first else { return nil }
@@ -90,9 +114,10 @@ extension Kasa {
 
     func getMany<T>(_ type: T.Type, startKey: String? = nil, endKey: String? = nil, limit: Int32? = nil) throws -> [T] where T: Codable {
         let typeName = "\(type)"
+        try createTableIfNeeded(name: typeName)
 
-        var sql = "Select value From KV Where valueType = ?"
-        var params: [Any] = [typeName]
+        var sql = "Select value From \(typeName) Where 1 = 1" // TODO: better way needed to build sql
+        var params: [Any] = []
 
         if let startKey = startKey {
             sql += " and kkey >= ?"
@@ -121,16 +146,16 @@ extension Kasa {
 
     func remove<T>(_ type: T.Type, forKey key: String) throws where T: Codable {
         let typeName = "\(type)"
-        let sql = "Delete From KV Where valueType = ? and kkey = ?;"
-        let statement = try prepareStatement(sql: sql, params: [typeName, key])
+        try createTableIfNeeded(name: typeName)
+        let sql = "Delete From \(typeName) Where kkey = ?;"
+        let statement = try prepareStatement(sql: sql, params: [key])
         try execute(statement: statement)
     }
     
     func removeAll<T>(_ type: T.Type) throws where T: Codable {
         let typeName = "\(type)"
-        let sql = "Delete From KV Where valueType = ?;"
-        let statement = try prepareStatement(sql: sql, params: [typeName])
-        try execute(statement: statement)
+        try createTableIfNeeded(name: typeName)
+        try execute(sql: "Delete From \(typeName)")
     }
 }
 
@@ -243,10 +268,10 @@ extension Kasa {
 // Migration
 extension Kasa {
     func runMigration<T>(_ type: T.Type, migration: ([String: Any]) -> [String: Any]) throws where T: Codable {
-        let sql = "Select kkey, value From KV Where valueType = ?"
         let typeName = "\(type)"
+        let sql = "Select kkey, value From \(typeName)"
         
-        let statement = try prepareStatement(sql: sql, params: [typeName])
+        let statement = try prepareStatement(sql: sql, params: [])
         defer { sqlite3_finalize(statement) }
 
         while sqlite3_step(statement) == SQLITE_ROW {
@@ -262,7 +287,7 @@ extension Kasa {
             // serialize new object
             let newData = try JSONSerialization.data(withJSONObject: newJsonObject, options: .fragmentsAllowed)
             // update the data on sqlite
-            let sql = "Update KV Set value = ? Where kkey = ?;"
+            let sql = "Update \(typeName) Set value = ? Where kkey = ?;"
             let updateStatement = try prepareStatement(sql: sql, params: [newData, kkey])
             try execute(statement: updateStatement)
         }
