@@ -12,10 +12,12 @@ import SQLite3
 class Kasa {
     var db: OpaquePointer
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
-    var tablesNames = [String]()
+    
+    static var tablesNames = [String]()
+    static let queue = DispatchQueue(label: "com.metinguler.kasa")
 
     // MARK: - Init
-    convenience init(name: String, queue: DispatchQueue? = nil) throws {
+    convenience init(name: String) throws {
         try self.init(dbPath: Kasa.dbPath(name: name))
     }
 
@@ -29,7 +31,10 @@ class Kasa {
             // wait until previous work finished. Otherwise it will return 'database is locked' error
             sqlite3_busy_timeout(db, 1000)
             
-            self.tablesNames = try getTables()
+            if Kasa.tablesNames.isEmpty {
+                Kasa.tablesNames = try getTables()
+            }
+            
             if firstInit {
                 // enable wal mode
                 try? self.execute(sql: "PRAGMA journal_mode = WAL")
@@ -47,30 +52,26 @@ class Kasa {
 // MARK: - SQL Init
 extension Kasa {
     private func getTables() throws -> [String] {
-        do {
-            let sql = """
-                SELECT name FROM sqlite_master
-                WHERE type ='table' AND name NOT LIKE 'sqlite_%';
-                """
-            
-            let statement = try prepareStatement(sql: sql, params: [])
-            defer { sqlite3_finalize(statement) }
+        let sql = """
+            SELECT name FROM sqlite_master
+            WHERE type ='table' AND name NOT LIKE 'sqlite_%';
+        """
+        
+        let statement = try prepareStatement(sql: sql, params: [])
+        defer { sqlite3_finalize(statement) }
 
-            var tables = [String]()
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let data = try getString(statement: statement, index: 0)
-                tables.append(data)
-            }
-            return tables
-        } catch let err {
-            throw err
+        var tables = [String]()
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let data = try getString(statement: statement, index: 0)
+            tables.append(data)
         }
+        return tables
     }
     
     private func createTableIfNeeded(name: String) throws {
-        guard !self.tablesNames.contains(name) else { return }
-        
-        do {
+        try Kasa.queue.sync {
+            guard !Kasa.tablesNames.contains(name) else { return }
+            
             let sql = """
                 CREATE TABLE \(name)(
                   kkey TEXT PRIMARY KEY NOT NULL,
@@ -79,14 +80,12 @@ extension Kasa {
             """
             try self.execute(sql: sql)
             try self.createPrimaryIndex(name: name)
-            self.tablesNames.append(name)
-        } catch let err {
-            throw err
+            Kasa.tablesNames.append(name)
         }
     }
 
     private func createPrimaryIndex(name: String) throws {
-        try execute(sql: "CREATE UNIQUE INDEX kkeyIndex ON \(name)(kkey);")
+        try execute(sql: "CREATE UNIQUE INDEX \(name)Index ON \(name)(kkey);")
     }
 }
 
