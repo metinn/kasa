@@ -10,10 +10,11 @@ import XCTest
 
 class ApiGetSetTests: XCTestCase {
     func testKasaGetSet() {
+        let uuid = UUID().uuidString
         do {
             let kasa = try Kasa(name: "testdb")
-            let car = Car(brand: "Suzuki", kmt: 12111)
-            try kasa.set(car, forKey: "alto")
+            let car = Car(uuid: uuid, brand: "Suzuki", kmt: 12111)
+            try kasa.save(car)
         } catch let err {
             print(err.localizedDescription)
             XCTAssert(false)
@@ -21,7 +22,7 @@ class ApiGetSetTests: XCTestCase {
 
         do {
             let kasa = try Kasa(name: "testdb")
-            let car = try kasa.get(Car.self, forKey: "alto")
+            let car = try kasa.object(Car.self, forUuid: uuid)
             XCTAssertNotNil(car)
             XCTAssertEqual(car!.brand, "Suzuki")
             XCTAssertEqual(car!.kmt, 12111)

@@ -8,7 +8,8 @@
 import XCTest
 @testable import kasa
 
-struct Car: Codable {
+struct Car: KasaObject {
+    var uuid: String
     var brand: String
     var kmt: Double
 }
@@ -19,10 +20,9 @@ func put100Car() {
         try kasa.removeAll(Car.self)
         
         for index in 1...100 {
-            try kasa.set(
-                Car(brand: String(format: "Brand%i", index), kmt: 100.0 * Double(index)),
-                forKey: String(format: "Cars-%.4i", index)
-            )
+            try kasa.save(Car(uuid: String(format: "Cars-%.4i", index),
+                             brand: String(format: "Brand%i", index),
+                             kmt: 100.0 * Double(index)))
             print("Kasa:", String(format: "Brand%i", index), String(format: "Cars-%.4i", index))
         }
     } catch let err {

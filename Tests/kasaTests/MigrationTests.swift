@@ -10,7 +10,7 @@ import XCTest
 import SQLite3
 
 class MigrationTests: XCTestCase {
-    struct Post: Codable {
+    struct Post: KasaObject {
         let uuid: String
         let text: String
         let likes: Int?
@@ -19,7 +19,8 @@ class MigrationTests: XCTestCase {
     func testMigration() {
         do {
             let kasa = try Kasa(name: "testdb")
-            try kasa.set(Post(uuid: UUID().uuidString, text: "Hello There", likes: nil), forKey: "post1")
+            let uuid = UUID().uuidString
+            try kasa.save(Post(uuid: uuid, text: "Hello There", likes: nil))
 
             try kasa.runMigration(Post.self) { json in
                 var newJson = json
@@ -27,7 +28,7 @@ class MigrationTests: XCTestCase {
                 return newJson
             }
             
-            let post = try kasa.get(Post.self, forKey: "post1")
+            let post = try kasa.object(Post.self, forUuid: uuid)
             XCTAssertNotNil(post, "post should not be nil")
             XCTAssertNotNil(post?.likes, "likes should not be nil")
             XCTAssertEqual(post!.likes, 1, "likes should not be equal to 1 which set with migration")

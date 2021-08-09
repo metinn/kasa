@@ -9,6 +9,10 @@
 import Foundation
 import SQLite3
 
+protocol KasaObject: Codable {
+    var uuid: String { get }
+}
+
 class Kasa {
     var db: OpaquePointer
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
@@ -74,7 +78,7 @@ extension Kasa {
             
             let sql = """
                 CREATE TABLE \(name)(
-                  kkey TEXT PRIMARY KEY NOT NULL,
+                  uuid TEXT PRIMARY KEY NOT NULL,
                   value BLOB
                 );
             """
@@ -85,54 +89,46 @@ extension Kasa {
     }
 
     private func createPrimaryIndex(name: String) throws {
-        try execute(sql: "CREATE UNIQUE INDEX \(name)Index ON \(name)(kkey);")
+        try execute(sql: "CREATE UNIQUE INDEX \(name)Index ON \(name)(uuid);")
     }
 }
 
 // MARK: - Public API
 extension Kasa {
-    func set<T>(_ object: T, forKey key: String) throws where T: Codable {
+    func save<T>(_ object: T) throws where T: KasaObject {
         let typeName = "\(T.self)"
         try createTableIfNeeded(name: typeName)
         let value = try JSONEncoder().encode(object)
-        let sql = "INSERT or REPLACE INTO \(typeName) (kkey, value) VALUES (?, ?);"
-        let statement = try prepareStatement(sql: sql, params: [key, value])
+        let sql = "INSERT or REPLACE INTO \(typeName) (uuid, value) VALUES (?, ?);"
+        let statement = try prepareStatement(sql: sql, params: [object.uuid, value])
         try execute(statement: statement)
     }
 
-    func get<T>(_ type: T.Type, forKey key: String) throws -> T? where T: Codable {
+    func object<T>(_ type: T.Type, forUuid uuid: String) throws -> T? where T: Codable {
         let typeName = "\(type)"
         try createTableIfNeeded(name: typeName)
-        let sql = "Select value From \(typeName) Where kkey = ?;"
-        let statement = try prepareStatement(sql: sql, params: [key])
+        let sql = "Select value From \(typeName) Where uuid = ?;"
+        let statement = try prepareStatement(sql: sql, params: [uuid])
         let dataArray = try query(statement: statement)
         
         guard let data = dataArray.first else { return nil }
         return try JSONDecoder().decode(type, from: data)
     }
-
-    func getMany<T>(_ type: T.Type, startKey: String? = nil, endKey: String? = nil, limit: Int32? = nil) throws -> [T] where T: Codable {
+    
+    func objects<T>(_ type: T.Type, filter: String? = nil, params: [Any] = [], orderBy: String? = nil, limit: Int32? = nil) throws -> [T] where T: Codable {
         let typeName = "\(type)"
-        try createTableIfNeeded(name: typeName)
-
-        var sql = "Select value From \(typeName) Where 1 = 1" // TODO: better way needed to build sql
-        var params: [Any] = []
-
-        if let startKey = startKey {
-            sql += " and kkey >= ?"
-            params.append(startKey)
+        var sql = "Select value From \(typeName)"
+        
+        if let filter = filter {
+            sql += " Where " + replaceJsonValuesWithFunction(filter)
         }
         
-        if let endKey = endKey {
-            sql += " and kkey < ?"
-            params.append(endKey)
+        if let orderby = orderBy {
+            sql += " Order by " + replaceJsonValuesWithFunction(orderby)
         }
-        
-        sql += " order by kkey"
         
         if let limit = limit {
-            sql += " limit ?"
-            params.append(limit)
+            sql += " Limit \(limit)"
         }
         
         let statement = try prepareStatement(sql: sql, params: params)
@@ -143,11 +139,11 @@ extension Kasa {
         }
     }
 
-    func remove<T>(_ type: T.Type, forKey key: String) throws where T: Codable {
+    func remove<T>(_ type: T.Type, forUuid uuid: String) throws where T: Codable {
         let typeName = "\(type)"
         try createTableIfNeeded(name: typeName)
-        let sql = "Delete From \(typeName) Where kkey = ?;"
-        let statement = try prepareStatement(sql: sql, params: [key])
+        let sql = "Delete From \(typeName) Where uuid = ?;"
+        let statement = try prepareStatement(sql: sql, params: [uuid])
         try execute(statement: statement)
     }
     
@@ -221,7 +217,7 @@ extension Kasa {
         }
     }
 
-    fileprivate func query(statement: OpaquePointer?) throws -> [Data] {
+    private func query(statement: OpaquePointer?) throws -> [Data] {
         defer { sqlite3_finalize(statement) }
 
         var dataArray = [Data]()
@@ -233,19 +229,29 @@ extension Kasa {
         return dataArray
     }
     
-    func getString(statement: OpaquePointer?, index: Int32) throws -> String {
+    private func getString(statement: OpaquePointer?, index: Int32) throws -> String {
         guard let cStr = sqlite3_column_text(statement, index) else {
             throw getLastError()
         }
         return String(cString: cStr)
     }
     
-    func getData(statement: OpaquePointer?, index: Int32) throws -> Data {
+    private func getData(statement: OpaquePointer?, index: Int32) throws -> Data {
         guard let blob = sqlite3_column_blob(statement, index) else {
             throw getLastError()
         }
         let bytes = sqlite3_column_bytes(statement, index)
         return Data(bytes: blob, count: Int(bytes))
+    }
+    
+    private func replaceJsonValuesWithFunction(_ filter: String) -> String {
+        return filter.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: " ").reduce("") { whereSql, word  in
+            if word.hasPrefix("$") {
+                return "\(whereSql) json_extract(value, '$.\(word.dropFirst())')"
+            } else {
+                return "\(whereSql) \(word)"
+            }
+        }
     }
 }
 
@@ -268,14 +274,14 @@ extension Kasa {
 extension Kasa {
     func runMigration<T>(_ type: T.Type, migration: ([String: Any]) -> [String: Any]) throws where T: Codable {
         let typeName = "\(type)"
-        let sql = "Select kkey, value From \(typeName)"
+        let sql = "Select uuid, value From \(typeName)"
         
         let statement = try prepareStatement(sql: sql, params: [])
         defer { sqlite3_finalize(statement) }
 
         while sqlite3_step(statement) == SQLITE_ROW {
             // get the object
-            let kkey = try getString(statement: statement, index: 0)
+            let uuid = try getString(statement: statement, index: 0)
             let data = try getData(statement: statement, index: 1)
             // make it json
             let jsonObject = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as! [String : Any]
@@ -286,8 +292,8 @@ extension Kasa {
             // serialize new object
             let newData = try JSONSerialization.data(withJSONObject: newJsonObject, options: .fragmentsAllowed)
             // update the data on sqlite
-            let sql = "Update \(typeName) Set value = ? Where kkey = ?;"
-            let updateStatement = try prepareStatement(sql: sql, params: [newData, kkey])
+            let sql = "Update \(typeName) Set value = ? Where uuid = ?;"
+            let updateStatement = try prepareStatement(sql: sql, params: [newData, uuid])
             try execute(statement: updateStatement)
         }
     }

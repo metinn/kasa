@@ -17,8 +17,8 @@ class CodableTests: XCTestCase {
 
         do {
             let kasa = try Kasa(name: "testdb")
-            try kasa.set(Car(brand: value, kmt: 5432.0), forKey: key)
-            let fetchedCar = try kasa.get(Car.self, forKey: key)
+            try kasa.save(Car(uuid: key, brand: value, kmt: 5432.0))
+            let fetchedCar = try kasa.object(Car.self, forUuid: key)
 
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value)
@@ -35,9 +35,9 @@ class CodableTests: XCTestCase {
 
         do {
             let kasa = try Kasa(name: "testdb")
-            try kasa.set(Car(brand: value1, kmt: 5432.0), forKey: key)
-            try kasa.set(Car(brand: value2, kmt: 121.0), forKey: key)
-            let fetchedCar = try kasa.get(Car.self, forKey: key)
+            try kasa.save(Car(uuid: key, brand: value1, kmt: 5432.0))
+            try kasa.save(Car(uuid: key, brand: value2, kmt: 121.0))
+            let fetchedCar = try kasa.object(Car.self, forUuid: key)
 
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value2)
@@ -53,14 +53,14 @@ class CodableTests: XCTestCase {
 
         do {
             let kasa = try Kasa(name: "testdb")
-            try kasa.set(Car(brand: value, kmt: 5432.0), forKey: key)
+            try kasa.save(Car(uuid: key, brand: value, kmt: 5432.0))
 
-            let fetchedCar = try kasa.get(Car.self, forKey: key)
+            let fetchedCar = try kasa.object(Car.self, forUuid: key)
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value)
 
-            try kasa.remove(Car.self, forKey: key)
-            XCTAssert(try kasa.get(Car.self, forKey: key) == nil)
+            try kasa.remove(Car.self, forUuid: key)
+            XCTAssert(try kasa.object(Car.self, forUuid: key) == nil)
         } catch let err {
             XCTAssert(false)
             print(err.localizedDescription)
