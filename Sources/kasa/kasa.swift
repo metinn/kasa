@@ -83,13 +83,14 @@ extension Kasa {
                 );
             """
             try self.execute(sql: sql)
-            try self.createPrimaryIndex(name: name)
+            try self.createIndex(indexName: "\(name)Index", tableName: name, expression: "uuid")
             Kasa.tablesNames.append(name)
         }
     }
 
-    private func createPrimaryIndex(name: String) throws {
-        try execute(sql: "CREATE UNIQUE INDEX \(name)Index ON \(name)(uuid);")
+    func createIndex(indexName: String, tableName: String, expression: String) throws {
+        let exp = replaceJsonValuesWithFunction(expression)
+        try execute(sql: "CREATE UNIQUE INDEX \(indexName) ON \(tableName)(\(exp);")
     }
 }
 
