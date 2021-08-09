@@ -16,9 +16,6 @@ protocol KasaObject: Codable {
 class Kasa {
     var db: OpaquePointer
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
-    
-    static var tablesNames = [String]()
-    static let queue = DispatchQueue(label: "com.metinguler.kasa")
 
     // MARK: - Init
     convenience init(name: String) throws {
@@ -34,10 +31,6 @@ class Kasa {
             
             // wait until previous work finished. Otherwise it will return 'database is locked' error
             sqlite3_busy_timeout(db, 1000)
-            
-            if Kasa.tablesNames.isEmpty {
-                Kasa.tablesNames = try getTables()
-            }
             
             if firstInit {
                 // enable wal mode
@@ -55,42 +48,20 @@ class Kasa {
 
 // MARK: - SQL Init
 extension Kasa {
-    private func getTables() throws -> [String] {
-        let sql = """
-            SELECT name FROM sqlite_master
-            WHERE type ='table' AND name NOT LIKE 'sqlite_%';
-        """
-        
-        let statement = try prepareStatement(sql: sql, params: [])
-        defer { sqlite3_finalize(statement) }
-
-        var tables = [String]()
-        while sqlite3_step(statement) == SQLITE_ROW {
-            let data = try getString(statement: statement, index: 0)
-            tables.append(data)
-        }
-        return tables
-    }
-    
     private func createTableIfNeeded(name: String) throws {
-        try Kasa.queue.sync {
-            guard !Kasa.tablesNames.contains(name) else { return }
-            
-            let sql = """
-                CREATE TABLE \(name)(
-                  uuid TEXT PRIMARY KEY NOT NULL,
-                  value BLOB
-                );
-            """
-            try self.execute(sql: sql)
-            try self.createIndex(indexName: "\(name)Index", tableName: name, expression: "uuid")
-            Kasa.tablesNames.append(name)
-        }
+        let sql = """
+            CREATE TABLE IF NOT EXISTS \(name)(
+              uuid TEXT PRIMARY KEY NOT NULL,
+              value BLOB
+            );
+        """
+        try self.execute(sql: sql)
+        try self.createIndex(indexName: "\(name)Index", tableName: name, expression: "uuid")
     }
 
     func createIndex(indexName: String, tableName: String, expression: String) throws {
         let exp = replaceJsonValuesWithFunction(expression)
-        try execute(sql: "CREATE UNIQUE INDEX \(indexName) ON \(tableName)(\(exp);")
+        try execute(sql: "CREATE UNIQUE INDEX IF NOT EXISTS \(indexName) ON \(tableName)(\(exp));")
     }
 }
 
@@ -98,16 +69,20 @@ extension Kasa {
 extension Kasa {
     func save<T>(_ object: T) throws where T: KasaObject {
         let typeName = "\(T.self)"
-        try createTableIfNeeded(name: typeName)
-        let value = try JSONEncoder().encode(object)
-        let sql = "INSERT or REPLACE INTO \(typeName) (uuid, value) VALUES (?, ?);"
-        let statement = try prepareStatement(sql: sql, params: [object.uuid, value])
-        try execute(statement: statement)
+        do {
+            let value = try JSONEncoder().encode(object)
+            let sql = "INSERT or REPLACE INTO \(typeName) (uuid, value) VALUES (?, ?);"
+            let statement = try prepareStatement(sql: sql, params: [object.uuid, value])
+            try execute(statement: statement)
+        } catch let err {
+            guard err.localizedDescription.contains("no such table") else { throw err }
+            try createTableIfNeeded(name: typeName)
+            return try save(object)
+        }
     }
 
     func object<T>(_ type: T.Type, forUuid uuid: String) throws -> T? where T: Codable {
         let typeName = "\(type)"
-        try createTableIfNeeded(name: typeName)
         let sql = "Select value From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
         let dataArray = try query(statement: statement)
@@ -142,7 +117,6 @@ extension Kasa {
 
     func remove<T>(_ type: T.Type, forUuid uuid: String) throws where T: Codable {
         let typeName = "\(type)"
-        try createTableIfNeeded(name: typeName)
         let sql = "Delete From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
         try execute(statement: statement)
@@ -150,7 +124,6 @@ extension Kasa {
     
     func removeAll<T>(_ type: T.Type) throws where T: Codable {
         let typeName = "\(type)"
-        try createTableIfNeeded(name: typeName)
         try execute(sql: "Delete From \(typeName)")
     }
 }

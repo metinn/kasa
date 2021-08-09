@@ -17,7 +17,7 @@ struct Car: KasaObject {
 func put100Car() {
     do {
         let kasa = try Kasa(name: "testdb")
-        try kasa.removeAll(Car.self)
+        try? kasa.removeAll(Car.self)
         
         for index in 1...100 {
             try kasa.save(Car(uuid: String(format: "Cars-%.4i", index),
