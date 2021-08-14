@@ -2,17 +2,19 @@
 
 > ⚠ Experimental, expect bugs and breaking changes
 
-Tiny Key-***Codable*** Store based on SQLITE with no external dependencies.
+Tiny ***Codable*** Store based on SQLITE with no external dependencies.
 
-## Usage
+## Basic Usage
 
-Create ***Codable*** object:
+Create ***KasaStorable*** object (Codable + PrimaryKey):
 
 ```swift
-struct Person: Codable {
+struct Person: KasaStorable {
     let name: String
     let age: Int
     let height: Double
+    
+    var primaryKey: String { return uuid }
 }
 ```
 
@@ -34,14 +36,16 @@ Save some person information:
 do {
     ...
     
-    let person = Person(name: "SomePerson", age: 28, height: 172.3)
-    try kasa.set(person, forKey: "key1")
+    var person = Person(name: "SomePerson", age: 28, height: 172.3)
+    try kasa.save(person)
+    
+    // update
+    person.age = 29
+    try kasa.save(person)
 } catch let err {
     ...
 }
 ```
-
-> update block starts transaction. Exceptions inside update block triggers rollback then calls onError callback
 
 Read person data:
 
@@ -49,22 +53,35 @@ Read person data:
 do {
     ...
     
-    let person = try kasa.get(Person.self, forKey: "key1")
+    let person = try kasa.object(Person.self, forUuid: "theuuid")
     print("Kasa:", person ?? "nil")
 } catch let err {
     ...
 }
 ```
 
-If you have ***Sortable Key*** you can get many objects
+Filter objects with where part of sql. Properties can be accessed with $ sign. Accessing nested objects is also possible like $person.adress.postCode 
 
 ```swift
 do {
     ...
     
-    let persons = try kasa.getMany(Person.self, startKey: "Person-00010", endKey: "Person-00030", limit: 20)
+    let persons = try kasa.objects(Person.self, filter: "$age >= ?", params: [30], limit: 7)
     print("Kasa:", persons.first?.name ?? "nil")
 } catch let err {
     ...
 }
 ```
+
+
+## Documentation
+TODO:
+
+- API
+    - Save
+    - Object
+    - Objects
+    - Remove
+    - RemoveAll
+    - CreateIndex
+    - Migration

@@ -8,10 +8,12 @@
 import XCTest
 @testable import kasa
 
-struct Car: KasaObject {
+struct Car: KasaStorable {
     var uuid: String
     var brand: String
     var kmt: Double
+    
+    var primaryKey: String { return uuid }
 }
 
 func put100Car() {

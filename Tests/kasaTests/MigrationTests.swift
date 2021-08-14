@@ -10,10 +10,12 @@ import XCTest
 import SQLite3
 
 class MigrationTests: XCTestCase {
-    struct Post: KasaObject {
+    struct Post: KasaStorable {
         let uuid: String
         let text: String
         let likes: Int?
+        
+        var primaryKey: String { return uuid }
     }
     
     func testMigration() {

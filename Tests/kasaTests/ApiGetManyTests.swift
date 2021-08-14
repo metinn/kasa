@@ -80,7 +80,7 @@ class ApiGetManyTests: XCTestCase {
         do {
             let kasa = try Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "1=1 limit 8")
+            let cars = try kasa.objects(Car.self, filter: "1=1", limit: 8)
             XCTAssertEqual(cars.count, 8)
             XCTAssertEqual(cars.first!.brand, "Brand1")
             XCTAssertEqual(cars.last!.brand, "Brand8")
