@@ -10,6 +10,7 @@ Create ***KasaStorable*** object (Codable + PrimaryKey):
 
 ```swift
 struct Person: KasaStorable {
+    let uuid: String
     let name: String
     let age: Int
     let height: Double
@@ -36,7 +37,7 @@ Save some person information:
 do {
     ...
     
-    var person = Person(name: "SomePerson", age: 28, height: 172.3)
+    var person = Person(uuid: "theuuid", name: "SomePerson", age: 28, height: 172.3)
     try kasa.save(person)
     
     // update
