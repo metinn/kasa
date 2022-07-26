@@ -26,7 +26,7 @@ class Kasa {
         var dbp: OpaquePointer?
         let firstInit = !FileManager.default.fileExists(atPath: dbPath)
         let openResult = sqlite3_open_v2(dbPath, &dbp, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil)
-        if openResult == SQLITE_OK || dbp != nil {
+        if openResult == SQLITE_OK && dbp != nil {
             db = dbp!
             
             // wait until previous work finished. Otherwise it will return 'database is locked' error
