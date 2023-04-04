@@ -10,19 +10,17 @@ import XCTest
 import SQLite3
 
 class MigrationTests: XCTestCase {
-    struct Post: KasaStorable {
-        let uuid: String
+    struct Post: Storable {
+        let id: String
         let text: String
         let likes: Int?
-        
-        var primaryKey: String { return uuid }
     }
     
     func testMigration() async {
         do {
             let kasa = try await Kasa(name: "testdb")
             let uuid = UUID().uuidString
-            try await kasa.save(Post(uuid: uuid, text: "Hello There", likes: nil))
+            try await kasa.save(Post(id: uuid, text: "Hello There", likes: nil))
 
             try await kasa.runMigration(Post.self) { json in
                 var newJson = json

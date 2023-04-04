@@ -9,9 +9,7 @@
 import Foundation
 import SQLite3
 
-protocol KasaStorable: Codable {
-    var uuid: String { get }
-}
+typealias Storable = Codable & Identifiable
 
 class Kasa {
     var db: OpaquePointer
@@ -67,12 +65,12 @@ extension Kasa {
 
 // MARK: - Public API
 extension Kasa {
-    func save<T>(_ object: T) async throws where T: KasaStorable {
+    func save<T>(_ object: T) async throws where T: Storable {
         let typeName = "\(T.self)"
         do {
             let value = try JSONEncoder().encode(object)
             let sql = "INSERT or REPLACE INTO \(typeName) (uuid, value) VALUES (?, ?);"
-            let statement = try prepareStatement(sql: sql, params: [object.uuid, value])
+            let statement = try prepareStatement(sql: sql, params: [object.id, value])
             try await execute(statement: statement)
         } catch let err {
             guard err.localizedDescription.contains("no such table") else { throw err }

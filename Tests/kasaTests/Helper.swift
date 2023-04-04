@@ -8,12 +8,10 @@
 import XCTest
 @testable import kasa
 
-struct Car: KasaStorable {
-    var uuid: String
+struct Car: Storable {
+    var id: String
     var brand: String
     var kmt: Double
-    
-    var primaryKey: String { return uuid }
 }
 
 func put100Car() async {
@@ -22,7 +20,7 @@ func put100Car() async {
         try? await kasa.removeAll(Car.self)
         
         for index in 1...100 {
-            try await kasa.save(Car(uuid: String(format: "Cars-%.4i", index),
+            try await kasa.save(Car(id: String(format: "Cars-%.4i", index),
                              brand: String(format: "Brand%i", index),
                              kmt: 100.0 * Double(index)))
             print("Kasa:", String(format: "Brand%i", index), String(format: "Cars-%.4i", index))

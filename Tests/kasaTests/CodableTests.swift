@@ -17,7 +17,7 @@ class CodableTests: XCTestCase {
 
         do {
             let kasa = try await Kasa(name: "testdb")
-            try await kasa.save(Car(uuid: key, brand: value, kmt: 5432.0))
+            try await kasa.save(Car(id: key, brand: value, kmt: 5432.0))
             let fetchedCar = try await kasa.object(Car.self, forUuid: key)
 
             XCTAssert(fetchedCar != nil)
@@ -35,8 +35,8 @@ class CodableTests: XCTestCase {
 
         do {
             let kasa = try await Kasa(name: "testdb")
-            try await kasa.save(Car(uuid: key, brand: value1, kmt: 5432.0))
-            try await kasa.save(Car(uuid: key, brand: value2, kmt: 121.0))
+            try await kasa.save(Car(id: key, brand: value1, kmt: 5432.0))
+            try await kasa.save(Car(id: key, brand: value2, kmt: 121.0))
             let fetchedCar = try await kasa.object(Car.self, forUuid: key)
 
             XCTAssert(fetchedCar != nil)
@@ -53,7 +53,7 @@ class CodableTests: XCTestCase {
 
         do {
             let kasa = try await Kasa(name: "testdb")
-            try await kasa.save(Car(uuid: key, brand: value, kmt: 5432.0))
+            try await kasa.save(Car(id: key, brand: value, kmt: 5432.0))
 
             let fetchedCar = try await kasa.object(Car.self, forUuid: key)
             XCTAssert(fetchedCar != nil)

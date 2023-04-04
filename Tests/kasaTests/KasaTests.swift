@@ -17,7 +17,7 @@ class KasaTests: XCTestCase {
 
             var kasa1 = try await Kasa(name: dbName)
             let uuid = UUID().uuidString
-            try await kasa1.save(Car(uuid: uuid, brand: "Brand1", kmt: 12_111))
+            try await kasa1.save(Car(id: uuid, brand: "Brand1", kmt: 12_111))
 
             kasa1 = try await Kasa(name: dbName)
             let car = try await kasa1.object(Car.self, forUuid: uuid)
@@ -34,7 +34,7 @@ class KasaTests: XCTestCase {
             Task {
                 do {
                     let kasa = try await Kasa(name: "testdb")
-                    try await kasa.save(Car(uuid: "tofas\(iteration)", brand: "Tofas\(iteration)", kmt: 5432.0))
+                    try await kasa.save(Car(id: "tofas\(iteration)", brand: "Tofas\(iteration)", kmt: 5432.0))
                 } catch let err {
                     print("testConcurrent:", err.localizedDescription)
                     XCTAssert(false)

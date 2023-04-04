@@ -13,7 +13,7 @@ class ApiGetSetTests: XCTestCase {
         let uuid = UUID().uuidString
         do {
             let kasa = try await Kasa(name: "testdb")
-            let car = Car(uuid: uuid, brand: "Suzuki", kmt: 12111)
+            let car = Car(id: uuid, brand: "Suzuki", kmt: 12111)
             try await kasa.save(car)
         } catch let err {
             print(err.localizedDescription)
