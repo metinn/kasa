@@ -18,11 +18,11 @@ class Kasa {
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
 
     // MARK: - Init
-    convenience init(name: String) throws {
-        try self.init(dbPath: Kasa.dbPath(name: name))
+    convenience init(name: String) async throws {
+        try await self.init(dbPath: Kasa.dbPath(name: name))
     }
 
-    init(dbPath: String) throws {
+    init(dbPath: String) async throws {
         var dbp: OpaquePointer?
         let firstInit = !FileManager.default.fileExists(atPath: dbPath)
         let openResult = sqlite3_open_v2(dbPath, &dbp, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil)
@@ -34,7 +34,7 @@ class Kasa {
             
             if firstInit {
                 // enable wal mode
-                try? self.execute(sql: "PRAGMA journal_mode = WAL")
+                try? await self.execute(sql: "PRAGMA journal_mode = WAL")
             }
         } else {
             throw NSError(domain: "sqlite3_open_v2 failed with code: \(openResult)", code: -1, userInfo: nil)
@@ -48,40 +48,40 @@ class Kasa {
 
 // MARK: - SQL Init
 extension Kasa {
-    private func createTableIfNeeded(name: String) throws {
+    private func createTableIfNeeded(name: String) async throws {
         let sql = """
             CREATE TABLE IF NOT EXISTS \(name)(
               uuid TEXT PRIMARY KEY NOT NULL,
               value BLOB
             );
         """
-        try self.execute(sql: sql)
-        try self.createIndex(indexName: "\(name)Index", tableName: name, expression: "uuid")
+        try await self.execute(sql: sql)
+        try await self.createIndex(indexName: "\(name)Index", tableName: name, expression: "uuid")
     }
 
-    func createIndex(indexName: String, tableName: String, expression: String) throws {
+    func createIndex(indexName: String, tableName: String, expression: String) async throws {
         let exp = replaceJsonValuesWithFunction(expression)
-        try execute(sql: "CREATE UNIQUE INDEX IF NOT EXISTS \(indexName) ON \(tableName)(\(exp));")
+        try await execute(sql: "CREATE UNIQUE INDEX IF NOT EXISTS \(indexName) ON \(tableName)(\(exp));")
     }
 }
 
 // MARK: - Public API
 extension Kasa {
-    func save<T>(_ object: T) throws where T: KasaStorable {
+    func save<T>(_ object: T) async throws where T: KasaStorable {
         let typeName = "\(T.self)"
         do {
             let value = try JSONEncoder().encode(object)
             let sql = "INSERT or REPLACE INTO \(typeName) (uuid, value) VALUES (?, ?);"
             let statement = try prepareStatement(sql: sql, params: [object.uuid, value])
-            try execute(statement: statement)
+            try await execute(statement: statement)
         } catch let err {
             guard err.localizedDescription.contains("no such table") else { throw err }
-            try createTableIfNeeded(name: typeName)
-            return try save(object)
+            try await createTableIfNeeded(name: typeName)
+            return try await save(object)
         }
     }
 
-    func object<T>(_ type: T.Type, forUuid uuid: String) throws -> T? where T: Codable {
+    func object<T>(_ type: T.Type, forUuid uuid: String) async throws -> T? where T: Codable {
         let typeName = "\(type)"
         let sql = "Select value From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
@@ -91,7 +91,7 @@ extension Kasa {
         return try JSONDecoder().decode(type, from: data)
     }
     
-    func objects<T>(_ type: T.Type, filter: String? = nil, params: [Any] = [], orderBy: String? = nil, limit: Int32? = nil) throws -> [T] where T: Codable {
+    func objects<T>(_ type: T.Type, filter: String? = nil, params: [Any] = [], orderBy: String? = nil, limit: Int32? = nil) async throws -> [T] where T: Codable {
         let typeName = "\(type)"
         var sql = "Select value From \(typeName)"
         
@@ -116,31 +116,31 @@ extension Kasa {
         }
     }
 
-    func remove<T>(_ type: T.Type, forUuid uuid: String) throws where T: Codable {
+    func remove<T>(_ type: T.Type, forUuid uuid: String) async throws where T: Codable {
         let typeName = "\(type)"
         let sql = "Delete From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
-        try execute(statement: statement)
+        try await execute(statement: statement)
     }
     
-    func removeAll<T>(_ type: T.Type) throws where T: Codable {
+    func removeAll<T>(_ type: T.Type) async throws where T: Codable {
         let typeName = "\(type)"
-        try execute(sql: "Delete From \(typeName)")
+        try await execute(sql: "Delete From \(typeName)")
     }
 }
 
 // MARK: - Kasa Transaction
 extension Kasa {
-    func beginTransaction() throws {
-        try execute(sql: "begin exclusive transaction;")
+    func beginTransaction() async throws {
+        try await execute(sql: "begin exclusive transaction;")
     }
 
-    func commitTransaction() throws {
-        try execute(sql: "commit transaction;")
+    func commitTransaction() async throws {
+        try await execute(sql: "commit transaction;")
     }
 
-    func rollbackTransaction() throws {
-        try execute(sql: "rollback transaction;")
+    func rollbackTransaction() async throws {
+        try await execute(sql: "rollback transaction;")
     }
 }
 
@@ -178,13 +178,13 @@ extension Kasa {
         return statement
     }
 
-    private func execute(sql: String) throws {
+    private func execute(sql: String) async throws {
         guard sqlite3_exec(db, sql.cString(using: .utf8), nil, nil, nil) == SQLITE_OK else {
             throw getLastError()
         }
     }
 
-    private func execute(statement: OpaquePointer?) throws {
+    private func execute(statement: OpaquePointer?) async throws {
         defer { sqlite3_finalize(statement) }
 
         guard sqlite3_step(statement) == SQLITE_DONE else {
@@ -247,7 +247,7 @@ extension Kasa {
 
 // Migration
 extension Kasa {
-    func runMigration<T>(_ type: T.Type, migration: ([String: Any]) -> [String: Any]) throws where T: Codable {
+    func runMigration<T>(_ type: T.Type, migration: ([String: Any]) -> [String: Any]) async throws where T: Codable {
         let typeName = "\(type)"
         let sql = "Select uuid, value From \(typeName)"
         
@@ -269,7 +269,7 @@ extension Kasa {
             // update the data on sqlite
             let sql = "Update \(typeName) Set value = ? Where uuid = ?;"
             let updateStatement = try prepareStatement(sql: sql, params: [newData, uuid])
-            try execute(statement: updateStatement)
+            try await execute(statement: updateStatement)
         }
     }
 }

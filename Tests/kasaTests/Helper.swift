@@ -16,13 +16,13 @@ struct Car: KasaStorable {
     var primaryKey: String { return uuid }
 }
 
-func put100Car() {
+func put100Car() async {
     do {
-        let kasa = try Kasa(name: "testdb")
-        try? kasa.removeAll(Car.self)
+        let kasa = try await Kasa(name: "testdb")
+        try? await kasa.removeAll(Car.self)
         
         for index in 1...100 {
-            try kasa.save(Car(uuid: String(format: "Cars-%.4i", index),
+            try await kasa.save(Car(uuid: String(format: "Cars-%.4i", index),
                              brand: String(format: "Brand%i", index),
                              kmt: 100.0 * Double(index)))
             print("Kasa:", String(format: "Brand%i", index), String(format: "Cars-%.4i", index))

@@ -10,13 +10,13 @@ import XCTest
 import SQLite3
 
 class JsonTests: XCTestCase {
-    func testFilter() {
-        put100Car()
+    func testFilter() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "$brand = ?", params: ["Brand14"])
+            let cars = try await kasa.objects(Car.self, filter: "$brand = ?", params: ["Brand14"])
             XCTAssertEqual(cars.count, 1)
             XCTAssertEqual(cars.first!.brand, "Brand14")
         } catch let err {
@@ -25,13 +25,13 @@ class JsonTests: XCTestCase {
         }
     }
     
-    func testFilterLike() {
-        put100Car()
+    func testFilterLike() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "$brand like ?", params: ["Brand1%"])
+            let cars = try await kasa.objects(Car.self, filter: "$brand like ?", params: ["Brand1%"])
             XCTAssertEqual(cars.count, 12)
             XCTAssertEqual(cars.first!.brand, "Brand1")
             XCTAssertEqual(cars.last!.brand, "Brand100")
@@ -41,13 +41,13 @@ class JsonTests: XCTestCase {
         }
     }
     
-    func testFilterOrderDesc() {
-        put100Car()
+    func testFilterOrderDesc() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "$brand like ?", params: ["Brand1%"], orderBy: "$brand desc")
+            let cars = try await kasa.objects(Car.self, filter: "$brand like ?", params: ["Brand1%"], orderBy: "$brand desc")
             XCTAssertEqual(cars.count, 12)
             XCTAssertEqual(cars.first!.brand, "Brand19")
             XCTAssertEqual(cars.last!.brand, "Brand1")

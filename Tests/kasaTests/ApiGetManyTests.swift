@@ -10,13 +10,13 @@ import XCTest
 
 class ApiGetManyTests: XCTestCase {
     
-    func testGetManyCheckGettingAll() {
-        put100Car()
+    func testGetManyCheckGettingAll() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let allCars = try kasa.objects(Car.self)
+            let allCars = try await kasa.objects(Car.self)
             XCTAssertEqual(allCars.count, 100)
             XCTAssertEqual(allCars.first!.brand, "Brand1")
             XCTAssertEqual(allCars.last!.brand, "Brand100")
@@ -26,13 +26,13 @@ class ApiGetManyTests: XCTestCase {
         }
     }
     
-    func testGetManyCheckStartKey() {
-        put100Car()
+    func testGetManyCheckStartKey() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "uuid >= ?", params: ["Cars-0017"])
+            let cars = try await kasa.objects(Car.self, filter: "uuid >= ?", params: ["Cars-0017"])
             XCTAssertEqual(cars.count, 84)
             XCTAssertEqual(cars.first!.brand, "Brand17")
             XCTAssertEqual(cars.last!.brand, "Brand100")
@@ -42,13 +42,13 @@ class ApiGetManyTests: XCTestCase {
         }
     }
     
-    func testGetManyCheckEndKey() {
-        put100Car()
+    func testGetManyCheckEndKey() async {
+        await  put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "uuid < ?", params: ["Cars-0042"])
+            let cars = try await kasa.objects(Car.self, filter: "uuid < ?", params: ["Cars-0042"])
             XCTAssertEqual(cars.count, 41)
             XCTAssertEqual(cars.first!.brand, "Brand1")
             XCTAssertEqual(cars.last!.brand, "Brand41")
@@ -58,13 +58,13 @@ class ApiGetManyTests: XCTestCase {
         }
     }
     
-    func testGetManyCheckStartAndEndKey() {
-        put100Car()
+    func testGetManyCheckStartAndEndKey() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "uuid between ? and ?", params: ["Cars-0030", "Cars-0078"])
+            let cars = try await kasa.objects(Car.self, filter: "uuid between ? and ?", params: ["Cars-0030", "Cars-0078"])
             XCTAssertEqual(cars.count, 49)
             XCTAssertEqual(cars.first!.brand, "Brand30")
             XCTAssertEqual(cars.last!.brand, "Brand78")
@@ -74,13 +74,13 @@ class ApiGetManyTests: XCTestCase {
         }
     }
     
-    func testGetManyCheckLimit() {
-        put100Car()
+    func testGetManyCheckLimit() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "1=1", limit: 8)
+            let cars = try await kasa.objects(Car.self, filter: "1=1", limit: 8)
             XCTAssertEqual(cars.count, 8)
             XCTAssertEqual(cars.first!.brand, "Brand1")
             XCTAssertEqual(cars.last!.brand, "Brand8")
@@ -90,13 +90,13 @@ class ApiGetManyTests: XCTestCase {
         }
     }
     
-    func testGetManyCheckLimitWithStartKey() {
-        put100Car()
+    func testGetManyCheckLimitWithStartKey() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "uuid >= ?", params: ["Cars-0054"], limit: 7)
+            let cars = try await kasa.objects(Car.self, filter: "uuid >= ?", params: ["Cars-0054"], limit: 7)
             XCTAssertEqual(cars.count, 7)
             XCTAssertEqual(cars.first!.brand, "Brand54")
             XCTAssertEqual(cars.last!.brand, "Brand60")
@@ -106,13 +106,13 @@ class ApiGetManyTests: XCTestCase {
         }
     }
     
-    func testGetManyCheckLimitWithEndKey() {
-        put100Car()
+    func testGetManyCheckLimitWithEndKey() async {
+        await put100Car()
         
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             
-            let cars = try kasa.objects(Car.self, filter: "uuid < ?", params: ["Cars-0014"], limit: 20)
+            let cars = try await kasa.objects(Car.self, filter: "uuid < ?", params: ["Cars-0014"], limit: 20)
             XCTAssertEqual(cars.count, 13)
             XCTAssertEqual(cars.first!.brand, "Brand1")
             XCTAssertEqual(cars.last!.brand, "Brand13")

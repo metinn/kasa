@@ -18,19 +18,19 @@ class MigrationTests: XCTestCase {
         var primaryKey: String { return uuid }
     }
     
-    func testMigration() {
+    func testMigration() async {
         do {
-            let kasa = try Kasa(name: "testdb")
+            let kasa = try await Kasa(name: "testdb")
             let uuid = UUID().uuidString
-            try kasa.save(Post(uuid: uuid, text: "Hello There", likes: nil))
+            try await kasa.save(Post(uuid: uuid, text: "Hello There", likes: nil))
 
-            try kasa.runMigration(Post.self) { json in
+            try await kasa.runMigration(Post.self) { json in
                 var newJson = json
                 newJson["likes"] = 1
                 return newJson
             }
             
-            let post = try kasa.object(Post.self, forUuid: uuid)
+            let post = try await kasa.object(Post.self, forUuid: uuid)
             XCTAssertNotNil(post, "post should not be nil")
             XCTAssertNotNil(post?.likes, "likes should not be nil")
             XCTAssertEqual(post!.likes, 1, "likes should not be equal to 1 which set with migration")
