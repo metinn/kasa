@@ -23,7 +23,6 @@ func put100Car() async {
             try await kasa.save(Car(id: String(format: "Cars-%.4i", index),
                              brand: String(format: "Brand%i", index),
                              kmt: 100.0 * Double(index)))
-            print("Kasa:", String(format: "Brand%i", index), String(format: "Cars-%.4i", index))
         }
     } catch let err {
         print(err.localizedDescription)
