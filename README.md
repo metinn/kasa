@@ -22,37 +22,37 @@ Tiny ***Codable*** Store based on SQLITE with no external dependencies.
 
 ## Basic Usage
 
-Create ***KasaStorable*** object (Codable + PrimaryKey):
+Create ***Storable*** object (Codable + Identifiable):
 
 ```swift
-struct Person: KasaStorable {
-    let uuid: String
+struct Person: Storable {
+    let id: String
     let name: String
-    let age: Int
+    var age: Int
     let height: Double
-    
-    var primaryKey: String { return uuid }
 }
+
+...
 
 do {
     // Create store
-    let kasa = try Kasa(name: "test")
+    let kasa = try await Kasa(name: "test")
     
     // Save some person information
-    var person = Person(uuid: "theuuid", name: "SomePerson", age: 28, height: 172.3)
-    try kasa.save(person)
+    var person = Person(id: "theuuid", name: "SomePerson", age: 28, height: 172.3)
+    try await kasa.save(person)
     
     // update
     person.age = 29
-    try kasa.save(person)
+    try await kasa.save(person)
 
     // fetch object with uuid
-    let fetchedPerson = try kasa.object(Person.self, forUuid: "theuuid")
-    print("Kasa:", person ?? "nil")
+    let fetchedPerson = try await kasa.object(Person.self, forUuid: "theuuid")
+    print("Kasa:", fetchedPerson ?? "nil")
 
     // fetch multiple objects
-    // Filter objects with where part of sql. Properties can be accessed with $ sign. Accessing nested objects is also possible like $person.adress.postCode 
-    let persons = try kasa.objects(Person.self, filter: "$age >= ? and $height < ?", params: [30, 175], limit: 7)
+    // Filter objects with where part of sql. Properties can be accessed with $ sign. Accessing nested objects is also possible like $person.adress.postCode
+    let persons = try await kasa.objects(Person.self, filter: "$age >= ? and $height < ?", params: [30, 175], limit: 7)
     print("Kasa:", persons.first?.name ?? "nil")
 
 } catch let err {
