@@ -30,20 +30,26 @@ class KasaTests: XCTestCase {
     }
 
     func testConcurrent() async {
-        DispatchQueue.concurrentPerform(iterations: 100) { iteration in
-            Task {
-                do {
-                    let kasa = try await Kasa(name: "testdb")
-                    try await kasa.save(Car(id: "tofas\(iteration)", brand: "Tofas\(iteration)", kmt: 5432.0))
-                } catch let err {
-                    print("testConcurrent:", err.localizedDescription)
-                    XCTAssert(false)
+        await withTaskGroup(of: Bool.self) { group in
+            for iteration in 0...99 {
+                group.addTask {
+                    do {
+                        let kasa = try await Kasa(name: "testdb")
+                        try await kasa.save(Car(id: "tofas\(iteration)", brand: "Tofas\(iteration)", kmt: 5432.0))
+                        return true
+                    } catch let err {
+                        print("testConcurrent:", err.localizedDescription)
+                        return false
+                    }
+                }
+            }
+            
+            for await result in group {
+                if result == false {
+                    XCTFail("a test failed")
                 }
             }
         }
-        
-        // TODO: run concurrentPerform block sync somehow
-        await Task.sleep(1)
 
         do {
             let kasa = try await Kasa(name: "testdb")
