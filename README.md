@@ -61,8 +61,7 @@ do {
 ```
 
 ## Usage Tips:
-- Sqlite is in "multi-thread" mode. Accessing to database from multiple thread is ok, but do not use same instance across threads
-    - Creating a new instance inside funciton is recommended. Keep the instance lifetime inside the scope
+- Kasa is an actor, an instance can be accessed from multiple threads safely. Also multiple instances can be used to access Sqlite in parallel because sqlite is in "multi-thread" mode.
 - While sqlite performance is amazing, JSONDecoder performance is not. So getting to much objects from database (like >1000) will be costly
     - Try to filter objects in query rather than getting all and filter it in swift.
 - Kasa using [JSON1 extension](https://www.sqlite.org/json1.html). The functions can be used in filter query

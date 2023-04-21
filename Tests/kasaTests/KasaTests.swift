@@ -62,4 +62,39 @@ class KasaTests: XCTestCase {
             XCTAssert(false)
         }
     }
+    
+    func testConcurrentSingleInstance() async {
+        let kasa = try! await Kasa(name: "testdb")
+        
+        await withTaskGroup(of: Bool.self) { group in
+            for iteration in 0...99 {
+                group.addTask {
+                    do {
+                        try await kasa.save(Car(id: "tofas\(iteration)", brand: "Tofas\(iteration)", kmt: 5432.0))
+                        return true
+                    } catch let err {
+                        print("testConcurrent:", err.localizedDescription)
+                        return false
+                    }
+                }
+            }
+            
+            for await result in group {
+                if result == false {
+                    XCTFail("a test failed")
+                }
+            }
+        }
+
+        do {
+            let kasa = try await Kasa(name: "testdb")
+            for iteration in 0...99 {
+                let car = try await kasa.object(Car.self, forUuid: "tofas\(iteration)")
+                XCTAssert(car != nil)
+            }
+        } catch let err {
+            print(err.localizedDescription)
+            XCTAssert(false)
+        }
+    }
 }

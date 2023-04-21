@@ -11,12 +11,12 @@ import SQLite3
 
 typealias Storable = Codable & Identifiable
 
-class Kasa {
+actor Kasa {
     var db: OpaquePointer
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
 
     // MARK: - Init
-    convenience init(name: String) async throws {
+    init(name: String) async throws {
         try await self.init(dbPath: Kasa.dbPath(name: name))
     }
 
