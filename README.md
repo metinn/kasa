@@ -4,21 +4,15 @@
 
 Tiny ***Codable*** Store based on SQLITE with no external dependencies.
 
-## Goals of this project:
-- Very easy to start with. 
-    - Add primary key to a Codable struct and use it
-    - No need to create tables, create indexes later if you need
-    - Nested objects can be saved, retrived and filtered with no additional effort
-- Open tiny library, restricted to be less than 500 loc
-    - Reading the source and hacking is easy
-    - Save lots of build time! (and maybe electricity, heat, CO2... who knows 🤔)
+- Tiny (~300 loc),
+    - Easy to read and hack
+- Painless, only needs Codable & Identifiable
+    - Zero setup code
+        - No database, table, index creation needed 
+    - Easy integration, and disintegration if needed
 - Good and consistent performance
     - Query performance with sqlite json1 extension is good. 
-    - Indexes can be created based on expression
-- Upgrade path
-    - While this library should cover many use cases, it is better to have a way to migrate when needed.
-    - Codable will be the bridge in the migration
-    - TODO: An example
+    - Additional indexes can be created based on expression
 
 ## Basic Usage
 
@@ -39,15 +33,15 @@ do {
     let kasa = try await Kasa(name: "test")
     
     // Save some person information
-    var person = Person(id: "theuuid", name: "SomePerson", age: 28, height: 172.3)
+    var person = Person(id: "theId", name: "SomePerson", age: 28, height: 172.3)
     try await kasa.save(person)
     
     // update
     person.age = 29
     try await kasa.save(person)
 
-    // fetch object with uuid
-    let fetchedPerson = try await kasa.object(Person.self, forUuid: "theuuid")
+    // fetch object with id
+    let fetchedPerson = try await kasa.object(Person.self, forId: "theId")
     print("Kasa:", fetchedPerson ?? "nil")
 
     // fetch multiple objects
@@ -67,15 +61,11 @@ do {
 - Kasa using [JSON1 extension](https://www.sqlite.org/json1.html). The functions can be used in filter query
     - The only syntaxtic sugar in the project is being able to write `$age` in filter query instead of `json_extract(value, '$.age')`
 - Migration can be done with `runMigration` function. This project does not keep the version number or handles the concurency. It need to be done inside the app.
-    - TODO: An example
 - When you need to run sql queries directly in sqlite, you can reach sqlite db from `kasa.db`
 
-
 ## How it works
-- You can read the source [kasa.swift](https://github.com/metinn/kasa/blob/master/Sources/kasa/kasa.swift)
-- If you don't want to
-    - JSONEndoder and JSONDecoder are used for conversion between Codable and Data
-    - Data saved on Sqlite table, named same as the codable object
-        - Table has 2 column: uuid (primary key) and value (json data)
-    - To run queries on json data, sqlite JSON1 extension is used
-
+- JSONEndoder and JSONDecoder are used for conversion between Codable and Data
+- Data saved on Sqlite table, named same as the codable object
+    - Table has 2 column: uuid (primary key) and value (json data)
+- To run queries on json data, sqlite JSON1 extension is used
+- Check out [kasa.swift](https://github.com/metinn/kasa/blob/master/Sources/kasa/kasa.swift) 
