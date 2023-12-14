@@ -28,7 +28,7 @@ class TransactionTests: XCTestCase {
 
             // becuse transaction is still open, function below should fail with database is locked error
             Task { await increaseKmOfTheCar() }
-            try await Task.sleep(for: .milliseconds(100))
+            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
             await increaseKmOfTheCar()
 
             try await kasa.save(returnedCar)
