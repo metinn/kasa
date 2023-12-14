@@ -16,7 +16,7 @@ Tiny ***Codable*** Store based on SQLITE with no external dependencies.
 
 ## Basic Usage
 
-Create ***Storable*** object (Codable + Identifiable):
+Create ***Storable*** (Codable & Identifiable) object:
 
 ```swift
 struct Person: Storable {
@@ -26,31 +26,31 @@ struct Person: Storable {
     let height: Double
 }
 
-...
-
-do {
-    // Create store
-    let kasa = try await Kasa(name: "test")
+func testKasa() {
+    do {
+        // Create store
+        let kasa = try await Kasa(name: "test")
+        
+        // Save some person information
+        var person = Person(id: "theId", name: "SomePerson", age: 28, height: 172.3)
+        try await kasa.save(person)
+        
+        // update
+        person.age = 29
+        try await kasa.save(person)
     
-    // Save some person information
-    var person = Person(id: "theId", name: "SomePerson", age: 28, height: 172.3)
-    try await kasa.save(person)
+        // fetch object with id
+        let fetchedPerson = try await kasa.object(Person.self, forId: "theId")
+        print("Kasa:", fetchedPerson ?? "nil")
     
-    // update
-    person.age = 29
-    try await kasa.save(person)
-
-    // fetch object with id
-    let fetchedPerson = try await kasa.object(Person.self, forId: "theId")
-    print("Kasa:", fetchedPerson ?? "nil")
-
-    // fetch multiple objects
-    // Filter objects with where part of sql. Properties can be accessed with $ sign. Accessing nested objects is also possible like $person.adress.postCode
-    let persons = try await kasa.objects(Person.self, filter: "$age >= ? and $height < ?", params: [30, 175], limit: 7)
-    print("Kasa:", persons.first?.name ?? "nil")
-
-} catch let err {
-    print("Kasa:", "Some error occured:", err.localizedDescription)
+        // fetch multiple objects
+        // Filter objects with where part of sql. Properties can be accessed with $ sign. Accessing nested objects is also possible like $person.adress.postCode
+        let persons = try await kasa.objects(Person.self, filter: "$age >= ? and $height < ?", params: [30, 175], limit: 7)
+        print("Kasa:", persons.first?.name ?? "nil")
+    
+    } catch let err {
+        print("Kasa:", "Some error occured:", err.localizedDescription)
+    }
 }
 ```
 
