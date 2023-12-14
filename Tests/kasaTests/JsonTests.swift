@@ -10,6 +10,10 @@ import XCTest
 import SQLite3
 
 class JsonTests: XCTestCase {
+    override class func tearDown() {
+        removeDatabase(name: "testdb")
+    }
+
     func testFilter() async {
         await put100Car()
         

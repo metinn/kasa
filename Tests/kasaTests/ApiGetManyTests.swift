@@ -9,7 +9,10 @@ import XCTest
 @testable import kasa
 
 class ApiGetManyTests: XCTestCase {
-    
+    override class func tearDown() {
+        removeDatabase(name: "testdb")
+    }
+
     func testGetManyCheckGettingAll() async {
         await put100Car()
         
@@ -43,7 +46,7 @@ class ApiGetManyTests: XCTestCase {
     }
     
     func testGetManyCheckEndKey() async {
-        await  put100Car()
+        await put100Car()
         
         do {
             let kasa = try await Kasa(name: "testdb")

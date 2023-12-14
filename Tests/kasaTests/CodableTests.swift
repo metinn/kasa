@@ -10,7 +10,10 @@ import XCTest
 @testable import kasa
 
 class CodableTests: XCTestCase {
-    
+    override class func tearDown() {
+        removeDatabase(name: "testdb")
+    }
+
     func testCodableInsertSync() async {
         let key = "testCodableInsertSync"
         let value = "codableValue"
@@ -18,7 +21,7 @@ class CodableTests: XCTestCase {
         do {
             let kasa = try await Kasa(name: "testdb")
             try await kasa.save(Car(id: key, brand: value, kmt: 5432.0))
-            let fetchedCar = try await kasa.object(Car.self, forUuid: key)
+            let fetchedCar = try await kasa.object(Car.self, forId: key)
 
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value)
@@ -37,7 +40,7 @@ class CodableTests: XCTestCase {
             let kasa = try await Kasa(name: "testdb")
             try await kasa.save(Car(id: key, brand: value1, kmt: 5432.0))
             try await kasa.save(Car(id: key, brand: value2, kmt: 121.0))
-            let fetchedCar = try await kasa.object(Car.self, forUuid: key)
+            let fetchedCar = try await kasa.object(Car.self, forId: key)
 
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value2)
@@ -55,12 +58,12 @@ class CodableTests: XCTestCase {
             let kasa = try await Kasa(name: "testdb")
             try await kasa.save(Car(id: key, brand: value, kmt: 5432.0))
 
-            let fetchedCar = try await kasa.object(Car.self, forUuid: key)
+            let fetchedCar = try await kasa.object(Car.self, forId: key)
             XCTAssert(fetchedCar != nil)
             XCTAssert(fetchedCar!.brand == value)
 
-            try await kasa.remove(Car.self, forUuid: key)
-            let deletedObject = try await kasa.object(Car.self, forUuid: key)
+            try await kasa.remove(Car.self, forId: key)
+            let deletedObject = try await kasa.object(Car.self, forId: key)
             XCTAssert(deletedObject == nil)
         } catch let err {
             XCTAssert(false)

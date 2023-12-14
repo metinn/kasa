@@ -9,18 +9,22 @@ import XCTest
 @testable import kasa
 
 class ApiRemoveTests: XCTestCase {
+    override class func tearDown() {
+        removeDatabase(name: "testdb")
+    }
+    
     func testRemove() async {
         await put100Car()
         
         do {
             let kasa = try await Kasa(name: "testdb")
             
-            try await kasa.remove(Car.self, forUuid: "Cars-0042")
+            try await kasa.remove(Car.self, forId: "Cars-0042")
             
-            let car = try await kasa.object(Car.self, forUuid: "Cars-0042")
+            let car = try await kasa.object(Car.self, forId: "Cars-0042")
             XCTAssertNil(car)
             
-            let existingCar = try await kasa.object(Car.self, forUuid: "Cars-0024")
+            let existingCar = try await kasa.object(Car.self, forId: "Cars-0024")
             XCTAssertNotNil(existingCar)
             
             let allCar = try await kasa.objects(Car.self)
@@ -39,7 +43,7 @@ class ApiRemoveTests: XCTestCase {
             
             try await kasa.removeAll(Car.self)
             
-            let car = try await kasa.object(Car.self, forUuid: "Cars-0042")
+            let car = try await kasa.object(Car.self, forId: "Cars-0042")
             XCTAssertNil(car)
             
             let allCar = try await kasa.objects(Car.self)

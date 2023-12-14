@@ -29,3 +29,10 @@ func put100Car() async {
         XCTAssert(false)
     }
 }
+
+func removeDatabase(name: String) {
+    let dbPath = Kasa.dbPath(name: name)
+    try? FileManager.default.removeItem(atPath: dbPath)
+    try? FileManager.default.removeItem(atPath: dbPath+"-wal")
+    try? FileManager.default.removeItem(atPath: dbPath+"-shm")
+}

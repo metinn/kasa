@@ -10,6 +10,9 @@ import XCTest
 @testable import kasa
 
 class KasaTests: XCTestCase {
+    override class func tearDown() {
+        removeDatabase(name: "testdb")
+    }
 
     func testOpeningDatabaseTwice() async {
         do {
@@ -20,7 +23,7 @@ class KasaTests: XCTestCase {
             try await kasa1.save(Car(id: uuid, brand: "Brand1", kmt: 12_111))
 
             kasa1 = try await Kasa(name: dbName)
-            let car = try await kasa1.object(Car.self, forUuid: uuid)
+            let car = try await kasa1.object(Car.self, forId: uuid)
             XCTAssertEqual((car?.brand ?? ""), "Brand1")
 
         } catch let err {
@@ -54,7 +57,7 @@ class KasaTests: XCTestCase {
         do {
             let kasa = try await Kasa(name: "testdb")
             for iteration in 0...99 {
-                let car = try await kasa.object(Car.self, forUuid: "tofas\(iteration)")
+                let car = try await kasa.object(Car.self, forId: "tofas\(iteration)")
                 XCTAssert(car != nil)
             }
         } catch let err {
@@ -89,7 +92,7 @@ class KasaTests: XCTestCase {
         do {
             let kasa = try await Kasa(name: "testdb")
             for iteration in 0...99 {
-                let car = try await kasa.object(Car.self, forUuid: "tofas\(iteration)")
+                let car = try await kasa.object(Car.self, forId: "tofas\(iteration)")
                 XCTAssert(car != nil)
             }
         } catch let err {

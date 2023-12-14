@@ -15,7 +15,11 @@ class MigrationTests: XCTestCase {
         let text: String
         let likes: Int?
     }
-    
+
+    override class func tearDown() {
+        removeDatabase(name: "testdb")
+    }
+
     func testMigration() async {
         do {
             let kasa = try await Kasa(name: "testdb")
@@ -28,7 +32,7 @@ class MigrationTests: XCTestCase {
                 return newJson
             }
             
-            let post = try await kasa.object(Post.self, forUuid: uuid)
+            let post = try await kasa.object(Post.self, forId: uuid)
             XCTAssertNotNil(post, "post should not be nil")
             XCTAssertNotNil(post?.likes, "likes should not be nil")
             XCTAssertEqual(post!.likes, 1, "likes should not be equal to 1 which set with migration")

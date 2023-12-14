@@ -9,6 +9,10 @@ import XCTest
 @testable import kasa
 
 class ApiGetSetTests: XCTestCase {
+    override class func tearDown() {
+        removeDatabase(name: "testdb")
+    }
+    
     func testKasaGetSet() async {
         let uuid = UUID().uuidString
         do {
@@ -22,7 +26,7 @@ class ApiGetSetTests: XCTestCase {
 
         do {
             let kasa = try await Kasa(name: "testdb")
-            let car = try await kasa.object(Car.self, forUuid: uuid)
+            let car = try await kasa.object(Car.self, forId: uuid)
             XCTAssertNotNil(car)
             XCTAssertEqual(car!.brand, "Suzuki")
             XCTAssertEqual(car!.kmt, 12111)

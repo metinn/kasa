@@ -79,7 +79,7 @@ extension Kasa {
         }
     }
 
-    func object<T>(_ type: T.Type, forUuid uuid: String) async throws -> T? where T: Codable {
+    func object<T>(_ type: T.Type, forId uuid: String) async throws -> T? where T: Codable {
         let typeName = "\(type)"
         let sql = "Select value From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
@@ -114,7 +114,7 @@ extension Kasa {
         }
     }
 
-    func remove<T>(_ type: T.Type, forUuid uuid: String) async throws where T: Codable {
+    func remove<T>(_ type: T.Type, forId uuid: String) async throws where T: Codable {
         let typeName = "\(type)"
         let sql = "Delete From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
@@ -229,7 +229,7 @@ extension Kasa {
 }
 
 extension Kasa {
-    static private func dbPath(name: String) -> String {
+    static func dbPath(name: String) -> String {
         let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         return "\(path)/\(name).sqlite"
     }
