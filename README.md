@@ -1,7 +1,5 @@
 # Kasa
 
-> ⚠ Experimental, expect bugs and breaking changes
-
 Tiny ***Codable*** Store based on SQLITE with no external dependencies.
 
 - Tiny (~300 loc),
