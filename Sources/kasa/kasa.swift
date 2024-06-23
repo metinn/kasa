@@ -9,18 +9,18 @@
 import Foundation
 import SQLite3
 
-typealias Storable = Codable & Identifiable
+public typealias Storable = Codable & Identifiable
 
-actor Kasa {
+public actor Kasa {
     var db: OpaquePointer
     let sqliteTransient = unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite3_destructor_type.self)
 
     // MARK: - Init
-    init(name: String) async throws {
+    public init(name: String) async throws {
         try await self.init(dbPath: Kasa.dbPath(name: name))
     }
 
-    init(dbPath: String) async throws {
+    public init(dbPath: String) async throws {
         var dbp: OpaquePointer?
         let firstInit = !FileManager.default.fileExists(atPath: dbPath)
         let openResult = sqlite3_open_v2(dbPath, &dbp, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil)
@@ -65,7 +65,7 @@ extension Kasa {
 
 // MARK: - Public API
 extension Kasa {
-    func save<T>(_ object: T) async throws where T: Storable {
+    public func save<T>(_ object: T) async throws where T: Storable {
         let typeName = "\(T.self)"
         do {
             let value = try JSONEncoder().encode(object)
@@ -79,7 +79,7 @@ extension Kasa {
         }
     }
 
-    func object<T>(_ type: T.Type, forId uuid: String) async throws -> T? where T: Codable {
+    public func object<T>(_ type: T.Type, forId uuid: String) async throws -> T? where T: Codable {
         let typeName = "\(type)"
         let sql = "Select value From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
@@ -89,7 +89,7 @@ extension Kasa {
         return try JSONDecoder().decode(type, from: data)
     }
     
-    func objects<T>(_ type: T.Type, filter: String? = nil, params: [Any] = [], orderBy: String? = nil, limit: Int32? = nil) async throws -> [T] where T: Codable {
+    public func objects<T>(_ type: T.Type, filter: String? = nil, params: [Any] = [], orderBy: String? = nil, limit: Int32? = nil) async throws -> [T] where T: Codable {
         let typeName = "\(type)"
         var sql = "Select value From \(typeName)"
         
@@ -114,14 +114,14 @@ extension Kasa {
         }
     }
 
-    func remove<T>(_ type: T.Type, forId uuid: String) async throws where T: Codable {
+    public func remove<T>(_ type: T.Type, forId uuid: String) async throws where T: Codable {
         let typeName = "\(type)"
         let sql = "Delete From \(typeName) Where uuid = ?;"
         let statement = try prepareStatement(sql: sql, params: [uuid])
         try await execute(statement: statement)
     }
     
-    func removeAll<T>(_ type: T.Type) async throws where T: Codable {
+    public func removeAll<T>(_ type: T.Type) async throws where T: Codable {
         let typeName = "\(type)"
         try await execute(sql: "Delete From \(typeName)")
     }
@@ -129,15 +129,15 @@ extension Kasa {
 
 // MARK: - Kasa Transaction
 extension Kasa {
-    func beginTransaction() async throws {
+    public func beginTransaction() async throws {
         try await execute(sql: "begin exclusive transaction;")
     }
 
-    func commitTransaction() async throws {
+    public func commitTransaction() async throws {
         try await execute(sql: "commit transaction;")
     }
 
-    func rollbackTransaction() async throws {
+    public func rollbackTransaction() async throws {
         try await execute(sql: "rollback transaction;")
     }
 }
@@ -229,12 +229,12 @@ extension Kasa {
 }
 
 extension Kasa {
-    static func dbPath(name: String) -> String {
+    public static func dbPath(name: String) -> String {
         let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         return "\(path)/\(name).sqlite"
     }
 
-    func getLastError() -> NSError {
+    public func getLastError() -> NSError {
         if let errorPointer = sqlite3_errmsg(db) {
             return NSError(domain: String(cString: errorPointer), code: -1, userInfo: nil)
         } else {
@@ -245,7 +245,7 @@ extension Kasa {
 
 // Migration
 extension Kasa {
-    func runMigration<T>(_ type: T.Type, migration: ([String: Any]) -> [String: Any]) async throws where T: Codable {
+    public func runMigration<T>(_ type: T.Type, migration: ([String: Any]) -> [String: Any]) async throws where T: Codable {
         let typeName = "\(type)"
         let sql = "Select uuid, value From \(typeName)"
         
