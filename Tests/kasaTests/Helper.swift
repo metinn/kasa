@@ -9,7 +9,7 @@ import XCTest
 @testable import kasa
 
 public struct Car: Storable {
-    var id: String
+    public var id: String
     var brand: String
     var kmt: Double
 }
